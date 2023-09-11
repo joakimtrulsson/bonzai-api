@@ -1,0 +1,73 @@
+service: gruppex-bonzai
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: eu-north-1
+  profile: HerrPablito
+  iam:
+    role: arn:aws:iam::724975227532:role/pabbe-role
+
+plugins: 
+  - serverless-webpack
+
+package:
+  individually: true
+
+functions:
+  postBooking:
+    handler: functions/postBooking/index.handler
+    events:
+      - httpApi:
+          path: "/api/booking"
+          method: POST
+  getBooking:
+    handler: functions/getBooking/index.handler
+    events:
+      - httpApi:
+          path: "/api/booking/{bookingId}"
+          method: GET
+  deleteBooking:
+    handler: functions/deleteBooking/index.handler
+    events:
+      - httpApi:
+          path: "/api/booking/{bookingId}"
+          method: DELETE
+  updateBooking:
+    handler: functions/updateBooking/index.handler
+    events:
+      - httpApi:
+          path: "/api/booking/{bookingId}"
+          method: PATCH
+  getAllBookings:
+    handler: functions/getAllBookings/index.handler
+    events:
+      - httpApi:
+          path: "/api/admin/booking"
+          method: GET
+
+resources:
+  Resources:
+    bookingDb:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: bookingDb
+        AttributeDefinitions:
+          - AttributeName: bookingId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: bookingId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+    roomsDb:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: roomsDb
+        AttributeDefinitions:
+          - AttributeName: roomsId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: roomsId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
