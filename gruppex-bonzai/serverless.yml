@@ -5,11 +5,14 @@ provider:
   name: aws
   runtime: nodejs18.x
   region: eu-north-1
-  profile: HerrPablito
+  profile: ${env:PROFILE}
   iam:
-    role: arn:aws:iam::724975227532:role/pabbe-role
+    role: ${env:LAMBDA_ROLE}
+  deploymentMethod: direct
 
-plugins: 
+useDotenv: true
+
+plugins:
   - serverless-webpack
 
 package:
@@ -20,31 +23,31 @@ functions:
     handler: functions/postBooking/index.handler
     events:
       - httpApi:
-          path: "/api/booking"
+          path: '/api/booking'
           method: POST
   getBooking:
     handler: functions/getBooking/index.handler
     events:
       - httpApi:
-          path: "/api/booking/{bookingId}"
+          path: '/api/booking/{bookingId}'
           method: GET
   deleteBooking:
     handler: functions/deleteBooking/index.handler
     events:
       - httpApi:
-          path: "/api/booking/{bookingId}"
+          path: '/api/booking/{bookingId}'
           method: DELETE
   updateBooking:
     handler: functions/updateBooking/index.handler
     events:
       - httpApi:
-          path: "/api/booking/{bookingId}"
+          path: '/api/booking/{bookingId}'
           method: PATCH
   getAllBookings:
     handler: functions/getAllBookings/index.handler
     events:
       - httpApi:
-          path: "/api/admin/booking"
+          path: '/api/admin/booking'
           method: GET
 
 resources:
