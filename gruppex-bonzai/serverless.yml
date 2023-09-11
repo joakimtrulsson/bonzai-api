@@ -19,6 +19,12 @@ package:
   individually: true
 
 functions:
+  createRooms:
+    handler: functions/createRooms/index.handler
+    events:
+      - httpApi:
+          path: '/api/createRooms'
+          method: POST
   postBooking:
     handler: functions/postBooking/index.handler
     events:
@@ -63,14 +69,14 @@ resources:
           - AttributeName: bookingId
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
-    roomsDb:
+    roomDb:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: roomsDb
+        TableName: roomDb
         AttributeDefinitions:
-          - AttributeName: roomsId
+          - AttributeName: roomId
             AttributeType: S
         KeySchema:
-          - AttributeName: roomsId
+          - AttributeName: roomId
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
