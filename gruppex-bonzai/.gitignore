@@ -4,8 +4,4 @@ jspm_packages
 
 # Serverless directories
 .serverless
-<<<<<<< HEAD
-=======
-
->>>>>>> af2af5b3057ff6d9ac318b599c6d53cb3ad8a4b0
 .env
