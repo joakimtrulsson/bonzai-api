@@ -9,13 +9,23 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "./functions/createRooms/index.js":
+/***/ "./functions/postBooking/index.js":
 /*!****************************************!*\
-  !*** ./functions/createRooms/index.js ***!
+  !*** ./functions/postBooking/index.js ***!
   \****************************************/
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
-eval("const { sendResponse, sendError } = __webpack_require__(/*! ../../responses/index */ \"./responses/index.js\");\r\nconst { db } = __webpack_require__(/*! ../../services/db */ \"./services/db.js\");\r\nconst rooms = [\r\n  {\r\n    roomId: 'room-1',\r\n    type: 'single',\r\n    price: 500,\r\n    maxGuests: 1,\r\n  },\r\n\r\n  {\r\n    roomId: 'room-2',\r\n    type: 'double',\r\n    price: 1000,\r\n    maxGuests: 2,\r\n  },\r\n  {\r\n    roomId: 'room-3',\r\n    type: 'suite',\r\n    price: 1500,\r\n    maxGuests: 3,\r\n  },\r\n];\r\nexports.handler = async (event, context) => {\r\n  try {\r\n    const request = rooms.map((room) => {\r\n      return {\r\n        PutRequest: {\r\n          Item: room,\r\n        },\r\n      };\r\n    });\r\n\r\n    const result = await db\r\n      .batchWrite({\r\n        RequestItems: {\r\n          ['roomDb']: request,\r\n        },\r\n        ReturnConsumedCapacity: 'TOTAL',\r\n      })\r\n      .promise();\r\n\r\n    if (result.UnprocessedItems.roomDb) {\r\n      return sendError(500, { success: false, message: 'Try again ' });\r\n    }\r\n    // await db\r\n    //   .put({\r\n    //     TableName: \"roomsDb\",\r\n    //     Item: {},\r\n    //   })\r\n    //   .promise();\r\n\r\n    // console.log(\"före\", rooms);\r\n\r\n    // await db.put(rooms, (err, data) => {\r\n    //   if (err) {\r\n    //     console.error(\"Error inserting data:\", err);\r\n    //   } else {\r\n    //     console.log(\"Data inserted successfully:\", data);\r\n    //   }\r\n    // }).promise()\r\n\r\n    // console.log(\"efter\", roomsData);\r\n\r\n    // await db\r\n    //   .put({\r\n    //     TableName: 'roomDb',\r\n    //     Item: {\r\n    //       roomId: roomId,\r\n    //       roomType: roomType,\r\n    //       maxGuests: maxGuests,\r\n    //       price: price,\r\n    //     },\r\n    //   })\r\n    //   .promise();\r\n    return sendResponse(200, { success: true, rooms });\r\n  } catch (error) {\r\n    return sendError(500, { success: false, error: error });\r\n  }\r\n};\r\n\n\n//# sourceURL=webpack://bonzai-api/./functions/createRooms/index.js?");
+eval("const BookingModel = __webpack_require__(/*! ../../models/booking */ \"./models/booking.js\");\r\nconst { sendResponse, sendError } = __webpack_require__(/*! ../../responses/index */ \"./responses/index.js\");\r\nconst { db } = __webpack_require__(/*! ../../services/db */ \"./services/db.js\");\r\nconst { nanoid } = __webpack_require__(/*! nanoid */ \"./node_modules/nanoid/index.js\");\r\nexports.handler = async (event, context) => {\r\n  try {\r\n    const body = JSON.parse(event.body);\r\n    const { room_types, total_guests, ...rest } = body;\r\n\r\n    const isGuestCountValid = BookingModel.checkTotalGuest(\r\n      room_types,\r\n      total_guests\r\n    );\r\n    if (!isGuestCountValid) {\r\n      return sendError(400, {\r\n        success: false,\r\n        message: 'Antalet gäster överstiger antalet tillgängliga rum.',\r\n      });\r\n    }\r\n    const bookingId = nanoid().slice(0, 6);\r\n    const totalCost = BookingModel.calculateTotalCost(room_types);\r\n    const params = {\r\n      TableName: process.env.DYNAMODB_BOOKING_TABLE,\r\n      Item: {\r\n        bookingId,\r\n        ...rest,\r\n        totalCost,\r\n        room_types,\r\n      },\r\n    };\r\n\r\n    await db.put(params).promise();\r\n\r\n    return sendResponse(200, {\r\n      success: true,\r\n      message: 'Bokning har skapats. Returnera ID.',\r\n      data: {\r\n        bookingNumber: bookingId,\r\n        ...rest,\r\n        totalCost,\r\n        room_types,\r\n      },\r\n    });\r\n  } catch (error) {\r\n    console.log(error);\r\n    return sendError(500, error);\r\n  }\r\n};\r\n\n\n//# sourceURL=webpack://bonzai-api/./functions/postBooking/index.js?");
+
+/***/ }),
+
+/***/ "./models/booking.js":
+/*!***************************!*\
+  !*** ./models/booking.js ***!
+  \***************************/
+/***/ ((module) => {
+
+eval("const BookingModel = {\r\n  calculateTotalCost: function (room_types) {\r\n    let price = 0;\r\n    for (let index = 0; index < room_types.length; index++) {\r\n      price += room_types[index].price;\r\n    }\r\n\r\n    return price;\r\n  },\r\n\r\n  checkTotalGuest: function (room_types, total_guests) {\r\n    let total = 0;\r\n    for (let index = 0; index < room_types.length; index++) {\r\n      total += room_types[index].maxGuests;\r\n    }\r\n\r\n    return total_guests <= total;\r\n  },\r\n};\r\n\r\nmodule.exports = BookingModel;\r\n\n\n//# sourceURL=webpack://bonzai-api/./models/booking.js?");
 
 /***/ }),
 
@@ -1577,7 +1587,7 @@ eval("function sendResponse(code, response) {\r\n    return {\r\n      statusCod
   \************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-eval("const { DocumentClient } = __webpack_require__(/*! aws-sdk/clients/dynamodb */ \"./node_modules/aws-sdk/clients/dynamodb.js\");\r\n\r\nconst db = new DocumentClient({\r\n    region: process.env.AWS_REGION,\r\n});\r\n\r\nmodule.exports = { db };\n\n//# sourceURL=webpack://bonzai-api/./services/db.js?");
+eval("const { DocumentClient } = __webpack_require__(/*! aws-sdk/clients/dynamodb */ \"./node_modules/aws-sdk/clients/dynamodb.js\");\r\n\r\nconst db = new DocumentClient({\r\n  region: process.env.DYNAMODB_REGION,\r\n});\r\n\r\nmodule.exports = { db };\r\n\n\n//# sourceURL=webpack://bonzai-api/./services/db.js?");
 
 /***/ }),
 
@@ -1768,6 +1778,28 @@ module.exports = require("util");
 
 /***/ }),
 
+/***/ "./node_modules/nanoid/index.js":
+/*!**************************************!*\
+  !*** ./node_modules/nanoid/index.js ***!
+  \**************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   customAlphabet: () => (/* binding */ customAlphabet),\n/* harmony export */   customRandom: () => (/* binding */ customRandom),\n/* harmony export */   nanoid: () => (/* binding */ nanoid),\n/* harmony export */   random: () => (/* binding */ random),\n/* harmony export */   urlAlphabet: () => (/* reexport safe */ _url_alphabet_index_js__WEBPACK_IMPORTED_MODULE_1__.urlAlphabet)\n/* harmony export */ });\n/* harmony import */ var crypto__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! crypto */ \"crypto\");\n/* harmony import */ var _url_alphabet_index_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./url-alphabet/index.js */ \"./node_modules/nanoid/url-alphabet/index.js\");\n\n\n\nconst POOL_SIZE_MULTIPLIER = 128\nlet pool, poolOffset\nlet fillPool = bytes => {\n  if (!pool || pool.length < bytes) {\n    pool = Buffer.allocUnsafe(bytes * POOL_SIZE_MULTIPLIER)\n    ;(0,crypto__WEBPACK_IMPORTED_MODULE_0__.randomFillSync)(pool)\n    poolOffset = 0\n  } else if (poolOffset + bytes > pool.length) {\n    (0,crypto__WEBPACK_IMPORTED_MODULE_0__.randomFillSync)(pool)\n    poolOffset = 0\n  }\n  poolOffset += bytes\n}\nlet random = bytes => {\n  fillPool((bytes -= 0))\n  return pool.subarray(poolOffset - bytes, poolOffset)\n}\nlet customRandom = (alphabet, defaultSize, getRandom) => {\n  let mask = (2 << (31 - Math.clz32((alphabet.length - 1) | 1))) - 1\n  let step = Math.ceil((1.6 * mask * defaultSize) / alphabet.length)\n  return (size = defaultSize) => {\n    let id = ''\n    while (true) {\n      let bytes = getRandom(step)\n      let i = step\n      while (i--) {\n        id += alphabet[bytes[i] & mask] || ''\n        if (id.length === size) return id\n      }\n    }\n  }\n}\nlet customAlphabet = (alphabet, size = 21) =>\n  customRandom(alphabet, size, random)\nlet nanoid = (size = 21) => {\n  fillPool((size -= 0))\n  let id = ''\n  for (let i = poolOffset - size; i < poolOffset; i++) {\n    id += _url_alphabet_index_js__WEBPACK_IMPORTED_MODULE_1__.urlAlphabet[pool[i] & 63]\n  }\n  return id\n}\n\n\n//# sourceURL=webpack://bonzai-api/./node_modules/nanoid/index.js?");
+
+/***/ }),
+
+/***/ "./node_modules/nanoid/url-alphabet/index.js":
+/*!***************************************************!*\
+  !*** ./node_modules/nanoid/url-alphabet/index.js ***!
+  \***************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   urlAlphabet: () => (/* binding */ urlAlphabet)\n/* harmony export */ });\nconst urlAlphabet =\n  'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict'\n\n\n//# sourceURL=webpack://bonzai-api/./node_modules/nanoid/url-alphabet/index.js?");
+
+/***/ }),
+
 /***/ "./node_modules/aws-sdk/apis/cognito-identity-2014-06-30.min.json":
 /*!************************************************************************!*\
   !*** ./node_modules/aws-sdk/apis/cognito-identity-2014-06-30.min.json ***!
@@ -1927,11 +1959,40 @@ eval("module.exports = JSON.parse('{\"rules\":{\"*/*\":{\"endpoint\":\"{service}
 /******/ 	}
 /******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/************************************************************************/
 /******/ 	
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module can't be inlined because the eval devtool is used.
-/******/ 	var __webpack_exports__ = __webpack_require__("./functions/createRooms/index.js");
+/******/ 	var __webpack_exports__ = __webpack_require__("./functions/postBooking/index.js");
 /******/ 	var __webpack_export_target__ = exports;
 /******/ 	for(var i in __webpack_exports__) __webpack_export_target__[i] = __webpack_exports__[i];
 /******/ 	if(__webpack_exports__.__esModule) Object.defineProperty(__webpack_export_target__, "__esModule", { value: true });
