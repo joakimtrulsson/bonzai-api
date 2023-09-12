@@ -45,7 +45,6 @@ exports.handler = async (event, context) => {
             }
 
         }).promise();
-
         return sendResponse(200, {
             success: true,
             message: "Booking updated. Here is the new booking:",
