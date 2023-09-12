@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "nanoid": "^4.0.2",
     "serverless-webpack": "^5.13.0"
   }
 }
