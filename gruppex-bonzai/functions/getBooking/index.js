@@ -6,7 +6,7 @@ exports.handler = async (event, context) => {
     const id = event.pathParameters;
 
     const params = {
-      TableName: 'bookingDb',
+      TableName: process.env.DYNAMODB_BOOKING_TABLE,
       Key: {
         bookingId: id.bookingId,
       },

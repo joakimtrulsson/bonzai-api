@@ -5,7 +5,7 @@ exports.handler = async (event, context) => {
   try {
     const result = await db
       .scan({
-        TableName: 'bookingDb',
+        TableName: process.env.DYNAMODB_BOOKING_TABLE,
       })
       .promise();
 
