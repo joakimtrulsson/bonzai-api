@@ -1,18 +1,48 @@
-const { sendResponse, sendError } = require("../../responses/index");
-const { db } = require("../../services/db");
-const roomsData = require("../../roomsData");
+const { sendResponse, sendError } = require('../../responses/index');
+const { db } = require('../../services/db');
+const rooms = [
+  {
+    roomId: 'room-1',
+    type: 'single',
+    price: 500,
+    maxGuests: 1,
+  },
 
+  {
+    roomId: 'room-2',
+    type: 'double',
+    price: 1000,
+    maxGuests: 2,
+  },
+  {
+    roomId: 'room-3',
+    type: 'suite',
+    price: 1500,
+    maxGuests: 3,
+  },
+];
 exports.handler = async (event, context) => {
-//   const rooms = roomsData.forEach((item) => {
-//     const params = {
-//       TableName: "roomsDb",
-//       Item: item,
-//     };
-//   });
-
-const { roomId, roomType, maxGuests, price } = JSON.parse(event.body);
-
   try {
+    const request = rooms.map((room) => {
+      return {
+        PutRequest: {
+          Item: room,
+        },
+      };
+    });
+
+    const result = await db
+      .batchWrite({
+        RequestItems: {
+          ['roomDb']: request,
+        },
+        ReturnConsumedCapacity: 'TOTAL',
+      })
+      .promise();
+
+    if (result.UnprocessedItems.roomDb) {
+      return sendError(500, { success: false, message: 'Try again ' });
+    }
     // await db
     //   .put({
     //     TableName: "roomsDb",
@@ -32,19 +62,18 @@ const { roomId, roomType, maxGuests, price } = JSON.parse(event.body);
 
     // console.log("efter", roomsData);
 
-
-    await db
-      .put({
-        TableName: "roomDb",
-        Item: {
-            roomId: roomId,
-            roomType: roomType,
-            maxGuests: maxGuests,
-            price: price,
-        },
-      })
-      .promise();
-    return sendResponse(200, { success: true });
+    // await db
+    //   .put({
+    //     TableName: 'roomDb',
+    //     Item: {
+    //       roomId: roomId,
+    //       roomType: roomType,
+    //       maxGuests: maxGuests,
+    //       price: price,
+    //     },
+    //   })
+    //   .promise();
+    return sendResponse(200, { success: true, rooms });
   } catch (error) {
     return sendError(500, { success: false, error: error });
   }
