@@ -1,20 +1,23 @@
 const BookingModel = {
-  calculateTotalCost: function (room_types) {
+  calculateTotalDays: function (checkIn, checkOut) {
+    return new Date(checkOut).getDate() - new Date(checkIn).getDate();
+  },
+  calculateTotalCost: function (rooms, totalDays) {
     let price = 0;
-    for (let index = 0; index < room_types.length; index++) {
-      price += room_types[index].price;
+    for (let index = 0; index < rooms.length; index++) {
+      price += rooms[index].price;
     }
 
-    return price;
+    return price * totalDays;
   },
 
-  checkTotalGuest: function (room_types, total_guests) {
+  checkTotalGuest: function (rooms, totalGuests) {
     let total = 0;
-    for (let index = 0; index < room_types.length; index++) {
-      total += room_types[index].maxGuests;
+    for (let index = 0; index < rooms.length; index++) {
+      total += rooms[index].maxGuests;
     }
 
-    return total_guests <= total;
+    return totalGuests <= total;
   },
 };
 
