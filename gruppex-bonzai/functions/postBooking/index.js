@@ -7,10 +7,7 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
     const { room_types, total_guests, ...rest } = body;
 
-    const isGuestCountValid = BookingModel.checkTotalGuest(
-      room_types,
-      total_guests
-    );
+    const isGuestCountValid = BookingModel.checkTotalGuest(room_types, total_guests);
     if (!isGuestCountValid) {
       return sendError(400, {
         success: false,
