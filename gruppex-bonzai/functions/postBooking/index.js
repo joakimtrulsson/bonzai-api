@@ -7,21 +7,22 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
     const { roomTypes, totalGuests, ...rest } = body;
 
-    const isGuestCountValid = BookingModel.checkTotalGuest(
-      roomTypes,
-      totalGuests
-    );
+    const isGuestCountValid = BookingModel.checkTotalGuest(roomTypes, totalGuests);
     if (!isGuestCountValid) {
       return sendError(400, {
         success: false,
         message: 'Antalet gäster överstiger antalet tillgängliga rum.',
       });
     }
+
+    const roomAvailability = await BookingModel.checkRoomAvailability(rest.checkIn, rest.checkOut);
+
+    if (!roomAvailability) {
+      return sendResponse(200, { message: 'Det finns inga lediga rum för de valda datumen.' });
+    }
+
     const bookingId = nanoid().slice(0, 6);
-    let totalDays = BookingModel.calculateTotalDays(
-      rest.checkIn,
-      rest.checkOut
-    );
+    let totalDays = BookingModel.calculateTotalDays(rest.checkIn, rest.checkOut);
     if (totalDays < 0) {
       return sendError(400, {
         success: false,
