@@ -6,49 +6,60 @@ const validationBody = require('../../models/validation');
 exports.handler = async (event, context) => {
   try {
     const body = JSON.parse(event.body);
-    const requiredFields = ['name', 'email', 'checkIn', 'checkOut', 'totalGuests','roomId'];
-    const errors = validationBody(requiredFields,body);
-    
-    if(errors.length > 0){
-      return sendError(400, { 
-        success: false,
-        message: 'Missing required '+errors[0],
-      });
-    }
+    const requiredFields = [
+      'name',
+      'email',
+      'checkIn',
+      'checkOut',
+      'totalGuests',
+      'roomId',
+    ];
+    const errorMessage = validationBody(requiredFields, body);
 
-    const request = body.roomId.map((id) =>{
-      return {
-        roomId: id
-      }
-    }
-    )
-    const {
-      Responses :{
-        roomDb: existingRooms
-      }
-    } = await db.batchGet({
-      RequestItems: {
-        ['roomDb']: {
-          Keys: request
-        }
-      }
-    }).promise()
-    if(existingRooms.length != body.roomId.length){
-      const existingIds = existingRooms.map((room) => room.roomId)
-      const missingRooms = body.roomId.filter((element) => !existingIds.includes(element));
-      const message = missingRooms.length > 1 
-      ? 'Rooms: '+missingRooms.join(', ')
-      : 'Room: '+missingRooms[0]
+    if (errorMessage) {
       return sendError(400, {
         success: false,
-        message: message+' does not exist',
+        message: errorMessage,
       });
     }
 
- 
-    const {  totalGuests, checkIn,checkOut,name, email, } = body;
+    const request = body.roomId.map((id) => {
+      return {
+        roomId: id,
+      };
+    });
+    const {
+      Responses: { roomDb: existingRooms },
+    } = await db
+      .batchGet({
+        RequestItems: {
+          ['roomDb']: {
+            Keys: request,
+          },
+        },
+      })
+      .promise();
+    if (existingRooms.length != body.roomId.length) {
+      const existingIds = existingRooms.map((room) => room.roomId);
+      const missingRooms = body.roomId.filter(
+        (element) => !existingIds.includes(element)
+      );
+      const message =
+        missingRooms.length > 1
+          ? 'Rooms: ' + missingRooms.join(', ')
+          : 'Room: ' + missingRooms[0];
+      return sendError(400, {
+        success: false,
+        message: message + ' does not exist',
+      });
+    }
 
-    const isGuestCountValid = BookingModel.checkTotalGuest(existingRooms, totalGuests);
+    const { totalGuests, checkIn, checkOut, name, email } = body;
+
+    const isGuestCountValid = BookingModel.checkTotalGuest(
+      existingRooms,
+      totalGuests
+    );
     if (!isGuestCountValid) {
       return sendError(400, {
         success: false,
@@ -56,10 +67,15 @@ exports.handler = async (event, context) => {
       });
     }
 
-    const roomAvailability = await BookingModel.checkRoomAvailability(checkIn, checkOut);
+    const roomAvailability = await BookingModel.checkRoomAvailability(
+      checkIn,
+      checkOut
+    );
 
     if (!roomAvailability) {
-      return sendResponse(200, { message: 'Det finns inga lediga rum för de valda datumen.' });
+      return sendResponse(200, {
+        message: 'Det finns inga lediga rum för de valda datumen.',
+      });
     }
 
     const bookingId = nanoid().slice(0, 6);
@@ -79,7 +95,12 @@ exports.handler = async (event, context) => {
       TableName: process.env.DYNAMODB_BOOKING_TABLE,
       Item: {
         bookingId,
-        ...body,
+        totalGuests,
+        checkIn,
+        checkOut,
+        name,
+        email,
+        rooms: existingRooms,
         totalCost,
       },
     };
@@ -97,7 +118,7 @@ exports.handler = async (event, context) => {
         totalGuests,
         name,
         email,
-        totalCost
+        totalCost,
       },
     });
   } catch (error) {

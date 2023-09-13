@@ -9,13 +9,13 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "./functions/postBooking/index.js":
-/*!****************************************!*\
-  !*** ./functions/postBooking/index.js ***!
-  \****************************************/
+/***/ "./functions/updateBooking/index.js":
+/*!******************************************!*\
+  !*** ./functions/updateBooking/index.js ***!
+  \******************************************/
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
-eval("const BookingModel = __webpack_require__(/*! ../../models/booking */ \"./models/booking.js\");\nconst { sendResponse, sendError } = __webpack_require__(/*! ../../responses/index */ \"./responses/index.js\");\nconst { db } = __webpack_require__(/*! ../../services/db */ \"./services/db.js\");\nconst { nanoid } = __webpack_require__(/*! nanoid */ \"./node_modules/nanoid/index.js\");\nconst validationBody = __webpack_require__(/*! ../../models/validation */ \"./models/validation.js\");\nexports.handler = async (event, context) => {\n  try {\n    const body = JSON.parse(event.body);\n    const requiredFields = ['name', 'email', 'checkIn', 'checkOut', 'totalGuests','roomId'];\n    const errors = validationBody(requiredFields,body);\n    \n    if(errors.length > 0){\n      return sendError(400, { \n        success: false,\n        message: 'Missing required '+errors[0],\n      });\n    }\n\n    const request = body.roomId.map((id) =>{\n      return {\n        roomId: id\n      }\n    }\n    )\n    const {\n      Responses :{\n        roomDb: existingRooms\n      }\n    } = await db.batchGet({\n      RequestItems: {\n        ['roomDb']: {\n          Keys: request\n        }\n      }\n    }).promise()\n    if(existingRooms.length != body.roomId.length){\n      const existingIds = existingRooms.map((room) => room.roomId)\n      const missingRooms = body.roomId.filter((element) => !existingIds.includes(element));\n      const message = missingRooms.length > 1 \n      ? 'Rooms: '+missingRooms.join(', ')\n      : 'Room: '+missingRooms[0]\n      return sendError(400, {\n        success: false,\n        message: message+' does not exist',\n      });\n    }\n\n \n    const {  totalGuests, checkIn,checkOut,name, email, } = body;\n\n    const isGuestCountValid = BookingModel.checkTotalGuest(existingRooms, totalGuests);\n    if (!isGuestCountValid) {\n      return sendError(400, {\n        success: false,\n        message: 'Antalet gäster överstiger antalet tillgängliga rum.',\n      });\n    }\n\n    const roomAvailability = await BookingModel.checkRoomAvailability(checkIn, checkOut);\n\n    if (!roomAvailability) {\n      return sendResponse(200, { message: 'Det finns inga lediga rum för de valda datumen.' });\n    }\n\n    const bookingId = nanoid().slice(0, 6);\n    let totalDays = BookingModel.calculateTotalDays(checkIn, checkOut);\n    if (totalDays < 0) {\n      return sendError(400, {\n        success: false,\n        message: 'Check in date must be before check out date.',\n      });\n    }\n    if (totalDays == 0) {\n      totalDays = 1;\n    }\n\n    const totalCost = BookingModel.calculateTotalCost(existingRooms, totalDays);\n    const params = {\n      TableName: process.env.DYNAMODB_BOOKING_TABLE,\n      Item: {\n        bookingId,\n        ...body,\n        totalCost,\n      },\n    };\n\n    await db.put(params).promise();\n\n    return sendResponse(200, {\n      success: true,\n      message: 'Bokning har skapats',\n      data: {\n        bookingNumber: bookingId,\n        rooms: existingRooms,\n        checkIn,\n        checkOut,\n        totalGuests,\n        name,\n        email,\n        totalCost\n      },\n    });\n  } catch (error) {\n    console.log(error);\n    return sendError(500, error);\n  }\n};\n\n\n//# sourceURL=webpack://bonzai-api/./functions/postBooking/index.js?");
+eval("const { sendResponse, sendError } = __webpack_require__(/*! ../../responses/index */ \"./responses/index.js\");\r\nconst { db } = __webpack_require__(/*! ../../services/db */ \"./services/db.js\");\r\nconst BookingModel = __webpack_require__(/*! ../../models/booking */ \"./models/booking.js\");\r\nconst validationBody = __webpack_require__(/*! ../../models/validation */ \"./models/validation.js\");\r\n\r\nexports.handler = async (event, context) => {\r\n  try {\r\n    const { bookingId } = event.pathParameters;\r\n    if (!bookingId) {\r\n      return sendError(400, {\r\n        success: false,\r\n        message: 'Missing booking id',\r\n      });\r\n    }\r\n    const existing_booking = await db\r\n      .get({\r\n        TableName: process.env.DYNAMODB_BOOKING_TABLE,\r\n        Key: {\r\n          bookingId: bookingId,\r\n        },\r\n      })\r\n      .promise();\r\n    if (!existing_booking.Item) {\r\n      return sendError(404, {\r\n        success: false,\r\n        message: 'Booking does not exist',\r\n      });\r\n    }\r\n    const body = JSON.parse(event.body);\r\n    const requiredFields = ['checkIn', 'checkOut', 'totalGuests', 'roomId'];\r\n    const errorMessage = validationBody(requiredFields, body);\r\n\r\n    if (errorMessage) {\r\n      return sendError(400, {\r\n        success: false,\r\n        message: errorMessage,\r\n      });\r\n    }\r\n\r\n    const request = body.roomId.map((id) => {\r\n      return {\r\n        roomId: id,\r\n      };\r\n    });\r\n    const {\r\n      Responses: { roomDb: existingRooms },\r\n    } = await db\r\n      .batchGet({\r\n        RequestItems: {\r\n          ['roomDb']: {\r\n            Keys: request,\r\n          },\r\n        },\r\n      })\r\n      .promise();\r\n    if (existingRooms.length != body.roomId.length) {\r\n      const existingIds = existingRooms.map((room) => room.roomId);\r\n      const missingRooms = body.roomId.filter(\r\n        (element) => !existingIds.includes(element)\r\n      );\r\n      const message =\r\n        missingRooms.length > 1\r\n          ? 'Rooms: ' + missingRooms.join(', ')\r\n          : 'Room: ' + missingRooms[0];\r\n      return sendError(400, {\r\n        success: false,\r\n        message: message + ' does not exist',\r\n      });\r\n    }\r\n\r\n    const { checkIn, checkOut, roomId, totalGuests } = body;\r\n    const isGuestCountValid = BookingModel.checkTotalGuest(\r\n      existingRooms,\r\n      totalGuests\r\n    );\r\n    if (!isGuestCountValid) {\r\n      return sendError(400, {\r\n        success: false,\r\n        message: 'Antalet gäster överstiger antalet tillgängliga rum.',\r\n      });\r\n    }\r\n\r\n    const totalDays = BookingModel.calculateTotalDays(checkIn, checkOut);\r\n    const totalCost = BookingModel.calculateTotalCost(existingRooms, totalDays);\r\n\r\n    await db\r\n      .update({\r\n        TableName: 'bookingDb',\r\n        Key: {\r\n          bookingId: bookingId,\r\n        },\r\n        UpdateExpression:\r\n          'set checkIn = :checkIn, checkOut = :checkOut, rooms = :rooms, totalGuests = :totalGuests, totalCost = :totalCost',\r\n        ExpressionAttributeValues: {\r\n          ':checkIn': checkIn,\r\n          ':checkOut': checkOut,\r\n          ':rooms': existingRooms,\r\n          ':totalGuests': totalGuests,\r\n          ':totalCost': totalCost,\r\n        },\r\n        ReturnValues: 'UPDATED_NEW',\r\n      })\r\n      .promise();\r\n    return sendResponse(200, {\r\n      success: true,\r\n      message: 'Booking updated. Here is the new booking:',\r\n      bookingNumber: bookingId,\r\n      checkIn,\r\n      checkOut,\r\n      totalGuests,\r\n      totalCost,\r\n      rooms: existingRooms,\r\n    });\r\n  } catch (error) {\r\n    console.log(error);\r\n    return sendError(500, {\r\n      success: false,\r\n      message: 'could not update booking',\r\n    });\r\n  }\r\n};\r\n\n\n//# sourceURL=webpack://bonzai-api/./functions/updateBooking/index.js?");
 
 /***/ }),
 
@@ -25,7 +25,7 @@ eval("const BookingModel = __webpack_require__(/*! ../../models/booking */ \"./m
   \***************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-eval("const { db } = __webpack_require__(/*! ../services/db */ \"./services/db.js\");\n\nconst BookingModel = {\n  calculateTotalDays: function (checkIn, checkOut) {\n    return new Date(checkOut).getDate() - new Date(checkIn).getDate();\n  },\n  calculateTotalCost: function (rooms, totalDays) {\n    let price = 0;\n    for (let index = 0; index < rooms.length; index++) {\n      price += rooms[index].price;\n    }\n\n    return price * totalDays;\n  },\n\n  checkTotalGuest: function (rooms, totalGuests) {\n    let total = 0;\n    for (let index = 0; index < rooms.length; index++) {\n      total += rooms[index].maxGuests;\n    }\n\n    return totalGuests <= total;\n  },\n\n  checkRoomAvailability: async function (newCheckIn, newCheckOut) {\n    try {\n      const existingBookings = await db\n        .scan({\n          TableName: process.env.DYNAMODB_BOOKING_TABLE,\n          FilterExpression: '#checkIn <= :checkOut AND #checkOut >= :checkIn',\n          ExpressionAttributeNames: {\n            '#checkIn': 'checkIn',\n            '#checkOut': 'checkOut',\n          },\n          ExpressionAttributeValues: {\n            ':checkIn': newCheckIn,\n            ':checkOut': newCheckOut,\n          },\n        })\n        .promise();\n\n      const availableRooms = {\n        single: 0,\n        double: 0,\n        suite: 0,\n      };\n\n      existingBookings.Items.forEach((booking) => {\n        booking.roomTypes.forEach((room) => {\n          availableRooms[room.type] += 1;\n        });\n      });\n\n      let totalAvailableRooms = 0;\n      for (const type of Object.keys(availableRooms)) {\n        totalAvailableRooms += availableRooms[type];\n      }\n\n      if (totalAvailableRooms > 20) {\n        return false;\n      }\n\n      return true;\n    } catch (error) {\n      console.error('Något gick fel vid kontroll av tillgängliga rum.', error);\n      throw error;\n    }\n  },\n};\n\nmodule.exports = BookingModel;\n\n\n//# sourceURL=webpack://bonzai-api/./models/booking.js?");
+eval("const { db } = __webpack_require__(/*! ../services/db */ \"./services/db.js\");\r\n\r\nconst BookingModel = {\r\n  calculateTotalDays: function (checkIn, checkOut) {\r\n    return new Date(checkOut).getDate() - new Date(checkIn).getDate();\r\n  },\r\n  calculateTotalCost: function (rooms, totalDays) {\r\n    let price = 0;\r\n    for (let index = 0; index < rooms.length; index++) {\r\n      price += rooms[index].price;\r\n    }\r\n\r\n    return price * totalDays;\r\n  },\r\n\r\n  checkTotalGuest: function (rooms, totalGuests) {\r\n    let total = 0;\r\n    for (let index = 0; index < rooms.length; index++) {\r\n      total += rooms[index].maxGuests;\r\n    }\r\n\r\n    return totalGuests <= total;\r\n  },\r\n\r\n  checkRoomAvailability: async function (newCheckIn, newCheckOut) {\r\n    try {\r\n      const existingBookings = await db\r\n        .scan({\r\n          TableName: process.env.DYNAMODB_BOOKING_TABLE,\r\n          FilterExpression: '#checkIn <= :checkOut AND #checkOut >= :checkIn',\r\n          ExpressionAttributeNames: {\r\n            '#checkIn': 'checkIn',\r\n            '#checkOut': 'checkOut',\r\n          },\r\n          ExpressionAttributeValues: {\r\n            ':checkIn': newCheckIn,\r\n            ':checkOut': newCheckOut,\r\n          },\r\n        })\r\n        .promise();\r\n\r\n      const availableRooms = {\r\n        single: 0,\r\n        double: 0,\r\n        suite: 0,\r\n      };\r\n      console.log(existingBookings);\r\n\r\n      existingBookings.Items.forEach((booking) => {\r\n        booking.rooms.forEach((room) => {\r\n          availableRooms[room.type] += 1;\r\n        });\r\n      });\r\n\r\n      let totalAvailableRooms = 0;\r\n      for (const type of Object.keys(availableRooms)) {\r\n        totalAvailableRooms += availableRooms[type];\r\n      }\r\n\r\n      if (totalAvailableRooms > 20) {\r\n        return false;\r\n      }\r\n\r\n      return true;\r\n    } catch (error) {\r\n      console.error('Något gick fel vid kontroll av tillgängliga rum.', error);\r\n      throw error;\r\n    }\r\n  },\r\n};\r\n\r\nmodule.exports = BookingModel;\r\n\n\n//# sourceURL=webpack://bonzai-api/./models/booking.js?");
 
 /***/ }),
 
@@ -35,7 +35,7 @@ eval("const { db } = __webpack_require__(/*! ../services/db */ \"./services/db.j
   \******************************/
 /***/ ((module) => {
 
-eval("const validationBody =(requiredFields, body) => {\n    const errors = [];\n    requiredFields.forEach((field) => {\n        if (!body[field]) {\n            errors.push(field);\n        }\n    });\n    return errors;\n}\n\nmodule.exports = validationBody\n\n//# sourceURL=webpack://bonzai-api/./models/validation.js?");
+eval("const validationBody = (requiredFields, body) => {\r\n  let errorMessage = '';\r\n  if (requiredFields.length !== Object.keys(body).length) {\r\n    return (errorMessage =\r\n      'Just need to fill in following fields: ' + requiredFields.join(', '));\r\n  }\r\n\r\n  for (let index = 0; index < requiredFields.length; index++) {\r\n    const field = requiredFields[index];\r\n    if (!body[field] || body[field] === '') {\r\n      errorMessage = field + ' field is required';\r\n      break;\r\n    }\r\n\r\n    if (field === 'checkIn' || field === 'checkOut') {\r\n      const dateFormatRegex = /^(\\d{4})(\\/|-)(\\d{1,2})(\\/|-)(\\d{1,2})$/;\r\n      if (!dateFormatRegex.test(body[field])) {\r\n        errorMessage = field + ' field have to be in format YYYY/MM/DD';\r\n        break;\r\n      }\r\n    }\r\n    if (field === 'totalGuests' && typeof body[field] !== 'number') {\r\n      errorMessage = field + ' field have to be a number';\r\n      break;\r\n    }\r\n\r\n    if (field === 'roomId' && !Array.isArray(body[field])) {\r\n      errorMessage = field + ' field have to be an array';\r\n      break;\r\n    }\r\n  }\r\n\r\n  return errorMessage;\r\n};\r\n\r\nmodule.exports = validationBody;\r\n\n\n//# sourceURL=webpack://bonzai-api/./models/validation.js?");
 
 /***/ }),
 
@@ -1587,7 +1587,7 @@ eval("// Generated by CoffeeScript 1.12.7\n(function() {\n  var NodeType, Writer
   \****************************/
 /***/ ((module) => {
 
-eval("function sendResponse(code, response) {\n    return {\n      statusCode: code,\n      headers: {\n        \"Content-Type\": \"application/json\",\n      },\n      body: JSON.stringify(response),\n    };\n}\n\nfunction sendError(statusCode, message) {\n    return {\n      statusCode,\n      headers: {\n        \"Content-Type\": \"application/json\",\n      },\n      body: JSON.stringify(message),\n    };\n  }\n\nmodule.exports = { sendResponse, sendError }\n\n//# sourceURL=webpack://bonzai-api/./responses/index.js?");
+eval("function sendResponse(code, response) {\r\n    return {\r\n      statusCode: code,\r\n      headers: {\r\n        \"Content-Type\": \"application/json\",\r\n      },\r\n      body: JSON.stringify(response),\r\n    };\r\n}\r\n\r\nfunction sendError(statusCode, message) {\r\n    return {\r\n      statusCode,\r\n      headers: {\r\n        \"Content-Type\": \"application/json\",\r\n      },\r\n      body: JSON.stringify(message),\r\n    };\r\n  }\r\n\r\nmodule.exports = { sendResponse, sendError }\n\n//# sourceURL=webpack://bonzai-api/./responses/index.js?");
 
 /***/ }),
 
@@ -1597,7 +1597,7 @@ eval("function sendResponse(code, response) {\n    return {\n      statusCode: c
   \************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-eval("const { DocumentClient } = __webpack_require__(/*! aws-sdk/clients/dynamodb */ \"./node_modules/aws-sdk/clients/dynamodb.js\");\n\nconst db = new DocumentClient({\n  region: process.env.DYNAMODB_REGION,\n});\n\nmodule.exports = { db };\n\n\n//# sourceURL=webpack://bonzai-api/./services/db.js?");
+eval("const { DocumentClient } = __webpack_require__(/*! aws-sdk/clients/dynamodb */ \"./node_modules/aws-sdk/clients/dynamodb.js\");\r\n\r\nconst db = new DocumentClient({\r\n  region: process.env.DYNAMODB_REGION,\r\n});\r\n\r\nmodule.exports = { db };\r\n\n\n//# sourceURL=webpack://bonzai-api/./services/db.js?");
 
 /***/ }),
 
@@ -1788,28 +1788,6 @@ module.exports = require("util");
 
 /***/ }),
 
-/***/ "./node_modules/nanoid/index.js":
-/*!**************************************!*\
-  !*** ./node_modules/nanoid/index.js ***!
-  \**************************************/
-/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   customAlphabet: () => (/* binding */ customAlphabet),\n/* harmony export */   customRandom: () => (/* binding */ customRandom),\n/* harmony export */   nanoid: () => (/* binding */ nanoid),\n/* harmony export */   random: () => (/* binding */ random),\n/* harmony export */   urlAlphabet: () => (/* reexport safe */ _url_alphabet_index_js__WEBPACK_IMPORTED_MODULE_1__.urlAlphabet)\n/* harmony export */ });\n/* harmony import */ var crypto__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! crypto */ \"crypto\");\n/* harmony import */ var _url_alphabet_index_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./url-alphabet/index.js */ \"./node_modules/nanoid/url-alphabet/index.js\");\n\n\n\nconst POOL_SIZE_MULTIPLIER = 128\nlet pool, poolOffset\nlet fillPool = bytes => {\n  if (!pool || pool.length < bytes) {\n    pool = Buffer.allocUnsafe(bytes * POOL_SIZE_MULTIPLIER)\n    ;(0,crypto__WEBPACK_IMPORTED_MODULE_0__.randomFillSync)(pool)\n    poolOffset = 0\n  } else if (poolOffset + bytes > pool.length) {\n    (0,crypto__WEBPACK_IMPORTED_MODULE_0__.randomFillSync)(pool)\n    poolOffset = 0\n  }\n  poolOffset += bytes\n}\nlet random = bytes => {\n  fillPool((bytes -= 0))\n  return pool.subarray(poolOffset - bytes, poolOffset)\n}\nlet customRandom = (alphabet, defaultSize, getRandom) => {\n  let mask = (2 << (31 - Math.clz32((alphabet.length - 1) | 1))) - 1\n  let step = Math.ceil((1.6 * mask * defaultSize) / alphabet.length)\n  return (size = defaultSize) => {\n    let id = ''\n    while (true) {\n      let bytes = getRandom(step)\n      let i = step\n      while (i--) {\n        id += alphabet[bytes[i] & mask] || ''\n        if (id.length === size) return id\n      }\n    }\n  }\n}\nlet customAlphabet = (alphabet, size = 21) =>\n  customRandom(alphabet, size, random)\nlet nanoid = (size = 21) => {\n  fillPool((size -= 0))\n  let id = ''\n  for (let i = poolOffset - size; i < poolOffset; i++) {\n    id += _url_alphabet_index_js__WEBPACK_IMPORTED_MODULE_1__.urlAlphabet[pool[i] & 63]\n  }\n  return id\n}\n\n\n//# sourceURL=webpack://bonzai-api/./node_modules/nanoid/index.js?");
-
-/***/ }),
-
-/***/ "./node_modules/nanoid/url-alphabet/index.js":
-/*!***************************************************!*\
-  !*** ./node_modules/nanoid/url-alphabet/index.js ***!
-  \***************************************************/
-/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   urlAlphabet: () => (/* binding */ urlAlphabet)\n/* harmony export */ });\nconst urlAlphabet =\n  'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict'\n\n\n//# sourceURL=webpack://bonzai-api/./node_modules/nanoid/url-alphabet/index.js?");
-
-/***/ }),
-
 /***/ "./node_modules/aws-sdk/apis/cognito-identity-2014-06-30.min.json":
 /*!************************************************************************!*\
   !*** ./node_modules/aws-sdk/apis/cognito-identity-2014-06-30.min.json ***!
@@ -1969,40 +1947,11 @@ eval("module.exports = JSON.parse('{\"rules\":{\"*/*\":{\"endpoint\":\"{service}
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = (exports, definition) => {
-/******/ 			for(var key in definition) {
-/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
-/******/ 		// define __esModule on exports
-/******/ 		__webpack_require__.r = (exports) => {
-/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 			}
-/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/************************************************************************/
 /******/ 	
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module can't be inlined because the eval devtool is used.
-/******/ 	var __webpack_exports__ = __webpack_require__("./functions/postBooking/index.js");
+/******/ 	var __webpack_exports__ = __webpack_require__("./functions/updateBooking/index.js");
 /******/ 	var __webpack_export_target__ = exports;
 /******/ 	for(var i in __webpack_exports__) __webpack_export_target__[i] = __webpack_exports__[i];
 /******/ 	if(__webpack_exports__.__esModule) Object.defineProperty(__webpack_export_target__, "__esModule", { value: true });

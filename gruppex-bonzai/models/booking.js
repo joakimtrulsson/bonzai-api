@@ -44,9 +44,10 @@ const BookingModel = {
         double: 0,
         suite: 0,
       };
+      console.log(existingBookings);
 
       existingBookings.Items.forEach((booking) => {
-        booking.roomTypes.forEach((room) => {
+        booking.rooms.forEach((room) => {
           availableRooms[room.type] += 1;
         });
       });
