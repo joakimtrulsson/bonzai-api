@@ -1,0 +1,85 @@
+service: gruppex-bonzai
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: eu-north-1
+  profile: ${env:PROFILE}
+  iam:
+    role: ${env:LAMBDA_ROLE}
+  deploymentMethod: direct
+  environment:
+    DYNAMODB_ROOM_TABLE: roomDb
+    DYNAMODB_BOOKING_TABLE: bookingDb
+    DYNAMODB_REGION: 'eu-north-1'
+useDotenv: true
+
+plugins:
+  - serverless-webpack
+
+package:
+  individually: true
+
+functions:
+  createRooms:
+    handler: functions/createRooms/index.handler
+    events:
+      - httpApi:
+          path: '/api/createRooms'
+          method: POST
+  postBooking:
+    handler: functions/postBooking/index.handler
+    events:
+      - httpApi:
+          path: '/api/booking'
+          method: POST
+  getBooking:
+    handler: functions/getBooking/index.handler
+    events:
+      - httpApi:
+          path: '/api/booking/{bookingId}'
+          method: GET
+  deleteBooking:
+    handler: functions/deleteBooking/index.handler
+    events:
+      - httpApi:
+          path: '/api/booking/{bookingId}'
+          method: DELETE
+  updateBooking:
+    handler: functions/updateBooking/index.handler
+    events:
+      - httpApi:
+          path: '/api/booking/{bookingId}'
+          method: PATCH
+  getAllBookings:
+    handler: functions/getAllBookings/index.handler
+    events:
+      - httpApi:
+          path: '/api/admin/booking'
+          method: GET
+
+resources:
+  Resources:
+    bookingDb:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: bookingDb
+        AttributeDefinitions:
+          - AttributeName: bookingId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: bookingId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+    roomDb:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: roomDb
+        AttributeDefinitions:
+          - AttributeName: roomId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: roomId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
