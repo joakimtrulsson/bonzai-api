@@ -1,13 +1,49 @@
 const { sendResponse, sendError } = require('../../responses/index');
 const { db } = require('../../services/db');
 const BookingModel = require('../../models/booking');
+const validationBody = require('../../models/validation');
 
 exports.handler = async (event, context) => {
   try {
     const { bookingId } = event.pathParameters;
     const body = JSON.parse(event.body);
-    const { checkIn, checkOut, roomTypes, totalGuests } = body;
-    const isGuestCountValid = BookingModel.checkTotalGuest(roomTypes, totalGuests);
+    const requiredFields = ['checkIn', 'checkOut', 'totalGuests','roomId'];
+    const errors = validationBody(requiredFields,body);
+    
+    if(errors.length > 0){
+      return sendError(400, { 
+        success: false,
+        message: 'Missing required '+errors[0],
+      });
+    }
+
+    const request = body.roomId.map((id) =>{
+      return {
+        roomId: id
+      }
+    }
+    )
+    const existingRooms = await db.batchGet({
+      RequestItems: {
+        ['roomDb']: {
+          Keys: request
+        }
+      }
+    }).promise()
+    if(existingRooms.Responses.roomDb.length != body.roomId.length){
+      const existingIds = existingRooms.Responses.roomDb.map((room) => room.roomId)
+      const missingRooms = body.roomId.filter((element) => !existingIds.includes(element));
+      const message = missingRooms.length > 1 
+      ? 'Rooms: '+missingRooms.join(', ')
+      : 'Room: '+missingRooms[0]
+      return sendError(400, {
+        success: false,
+        message: message+' does not exist',
+      });
+    }
+
+    const { checkIn, checkOut, roomId, totalGuests } = body;
+    const isGuestCountValid = BookingModel.checkTotalGuest(roomId, totalGuests);
     if (!isGuestCountValid) {
       return sendError(400, {
         success: false,
@@ -17,7 +53,7 @@ exports.handler = async (event, context) => {
 
     const totalDays = BookingModel.calculateTotalDays(checkIn, checkOut);
 
-    const totalCost = BookingModel.calculateTotalCost(roomTypes, totalDays);
+    const totalCost = BookingModel.calculateTotalCost(roomId, totalDays);
     const params = {
       TableName: process.env.DYNAMODB_BOOKING_TABLE,
       Item: {
@@ -26,7 +62,7 @@ exports.handler = async (event, context) => {
         checkOut,
         totalGuests,
         totalCost,
-        roomTypes,
+        roomId,
       },
     };
 
@@ -37,11 +73,11 @@ exports.handler = async (event, context) => {
           bookingId: bookingId,
         },
         UpdateExpression:
-          'set checkIn = :checkIn, checkOut = :checkOut, roomTypes = :roomTypes, totalGuests = :totalGuests, totalCost = :totalCost',
+          'set checkIn = :checkIn, checkOut = :checkOut, roomId = :roomId, totalGuests = :totalGuests, totalCost = :totalCost',
         ExpressionAttributeValues: {
           ':checkIn': checkIn,
           ':checkOut': checkOut,
-          ':roomTypes': roomTypes,
+          ':roomId': roomId,
           ':totalGuests': totalGuests,
           ':totalCost': totalCost,
         },
@@ -51,11 +87,11 @@ exports.handler = async (event, context) => {
       success: true,
       message: 'Booking updated. Here is the new booking:',
       bookingNumber: bookingId,
-      checkIn: checkIn,
-      checkOut: checkOut,
-      totalGuests: totalGuests,
-      totalCost: totalCost,
-      roomTypes: roomTypes,
+      checkIn,
+      checkOut,
+      totalGuests,
+      totalCost,
+      roomId
     });
   } catch (error) {
     console.log(error);
