@@ -12,5 +12,8 @@
   "devDependencies": {
     "nanoid": "^4.0.2",
     "serverless-webpack": "^5.13.0"
+  },
+  "dependencies": {
+    "moment": "^2.29.4"
   }
 }

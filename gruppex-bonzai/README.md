@@ -1,72 +1,46 @@
-<!--
-title: 'AWS NodeJS Example'
-description: 'This template demonstrates how to deploy a NodeJS function running on AWS Lambda using the traditional Serverless Framework.'
-layout: Doc
-framework: v3
-platform: AWS
-language: nodeJS
-priority: 1
-authorLink: 'https://github.com/serverless'
-authorName: 'Serverless, inc.'
-authorAvatar: 'https://avatars1.githubusercontent.com/u/13742415?s=200&v=4'
--->
+# Bonz.ai Api
 
+Projektet är ett bokningssystem utvecklat för Bonz.ai, ett fiktivt hotell. Systemet är byggt med AWS-teknologier. Vi har utnyttjat Serverless Framework för att enkelt hantera våra AWS-resurser. Amazon API Gateway används för hantera bokningsförfrågningar. Backend-logiken körs med hjälp av AWS Lambda-funktioner, och bokningsdata lagras och hanteras i DynamoDB.
 
-# Serverless Framework AWS NodeJS Example
+## Användning
 
-This template demonstrates how to deploy a NodeJS function running on AWS Lambda using the traditional Serverless Framework. The deployed function does not include any event definitions as well as any kind of persistence (database). For more advanced configurations check out the [examples repo](https://github.com/serverless/examples/) which includes integrations with SQS, DynamoDB or examples of functions that are triggered in `cron`-like manner. For details about configuration of specific `events`, please refer to our [documentation](https://www.serverless.com/framework/docs/providers/aws/events/).
+För att testa projektet och skapa rum i hotellets databas, följ dessa steg:
 
-## Usage
+1. Gör en POST-förfrågan till `api/createrooms` med en tom body. Detta kommer att skapa rummen i `roomsDb` i DynamoDB och göra dem tillgängliga för bokning.
+
+   Exempel med cURL:
+
+   ```bash
+   curl -X POST https://din-api-url/api/createrooms
+   ```
 
 ### Deployment
 
-In order to deploy the example, you need to run the following command:
+För att publicera projektet måste du köra följande kommando:
 
 ```
 $ serverless deploy
 ```
 
-After running deploy, you should see output similar to:
+## Användning med Insomnia
 
-```bash
-Deploying aws-node-project to stage dev (us-east-1)
+För att enkelt testa och använda vårt bokningssystem i Insomnia, kan du importera vår färdigkonfigurerade Insomnia-fil.
 
-✔ Service deployed to stack aws-node-project-dev (112s)
+1. Öppna Insomnia och välj "Import/Export" från huvudmenyn.
 
-functions:
-  hello: aws-node-project-dev-hello (1.5 kB)
-```
+2. Klicka på "Import Data" och välj "From File" för att importera en fil.
 
-### Invocation
+3. Ladda ner vår [Insomnia JSON-fil] som innehåller alla förkonfigurerade bokningsförfrågningar och endpoints.
 
-After successful deployment, you can invoke the deployed function by using the following command:
+4. Öppna den importerade Insomnia-miljön och börja använda den för att utföra bokningsförfrågningar mot ditt Bonz.ai bokningssystem.
 
-```bash
-serverless invoke --function hello
-```
+Nu kan du enkelt testa och använda API:et med Insomnia!
 
-Which should result in response similar to the following:
+## Projektmedlemmar
 
-```json
-{
-    "statusCode": 200,
-    "body": "{\n  \"message\": \"Go Serverless v3.0! Your function executed successfully!\",\n  \"input\": {}\n}"
-}
-```
+Detta projekt skapades och utvecklades av följande personer:
 
-### Local development
-
-You can invoke your function locally by using the following command:
-
-```bash
-serverless invoke local --function hello
-```
-
-Which should result in response similar to the following:
-
-```
-{
-    "statusCode": 200,
-    "body": "{\n  \"message\": \"Go Serverless v3.0! Your function executed successfully!\",\n  \"input\": \"\"\n}"
-}
-```
+- **Audrey**
+- **Jocke**
+- **Pablo**
+- **William**
